@@ -263,6 +263,8 @@ Version: v1.0
 
 ```
 
+![Entropy Visualization](assets/entropy_visualization.png)
+
 ## Disclaimer
 
 This tool is for **educational and research purposes only**. Do not use it for unethical activities.
