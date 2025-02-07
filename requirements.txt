@@ -1,0 +1,6 @@
+pefile
+ssdeep
+yara-python
+python-magic
+pyfiglet
+matplotlib

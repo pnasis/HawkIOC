@@ -3,5 +3,5 @@ test/
 
 # Ignore files
 *.exe
-*.txt
+*strings.txt
 *.kate-swp
