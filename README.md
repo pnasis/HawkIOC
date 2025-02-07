@@ -43,8 +43,7 @@ python3 hawkioc.py -f sample.exe
 - Unpacked binary (if applicable): `<filename>_unpacked.exe`
 
 ## Example Output
-```
-python hawkioc.py -f apple.exe                                                                                                                                   ✔  test  
+```                                                                                                                               ✔  test  
     __  __               __   ____      ______
    / / / /___ __      __/ /__/  _/___  / ____/
   / /_/ / __ `/ | /| / / //_// // __ \/ /     
