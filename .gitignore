@@ -1,0 +1,7 @@
+# Ignore the test directory
+test/
+
+# Ignore files
+*.exe
+*.txt
+*.kate-swp
