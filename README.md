@@ -9,6 +9,7 @@ HawkIOC is a Python-based tool designed to automate a large part of the **static
 - **String Extraction**: Extracts ASCII & Unicode strings and saves them to `<filename>_strings.txt`.
 - **Entropy Calculation**: Computes file and PE section entropy to detect packing.
 - **UPX Detection & Unpacking**: Identifies UPX-packed files and attempts to unpack them.
+- **YARA Rule Integration:** Supports scanning files with YARA rules to identify malware families and behavioral patterns.
 
 ## Installation
 
