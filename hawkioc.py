@@ -11,16 +11,20 @@ import string
 import math
 import subprocess
 from collections import Counter
-import yara
 import matplotlib.pyplot as plt
 import warnings
+from elftools.elf.elffile import ELFFile
+import lief
+
 warnings.simplefilter("ignore")
 
 
+# ------------------------ Helper Functions ------------------------
 def print_section(title):
     print("\n" + "=" * 50)
     print(f"\t\t[{title}]")
     print("=" * 50)
+
 
 def get_file_type(file_path):
     file_magic = magic.Magic()
@@ -29,22 +33,21 @@ def get_file_type(file_path):
         magic_numbers = f.read(8).hex().upper()
     return file_type, magic_numbers
 
+
 def calculate_hashes(file_path):
     md5_hash = hashlib.md5()
     sha256_hash = hashlib.sha256()
-
     with open(file_path, "rb") as f:
         while chunk := f.read(4096):
             md5_hash.update(chunk)
             sha256_hash.update(chunk)
-
     return md5_hash.hexdigest(), sha256_hash.hexdigest()
+
 
 def get_pe_hashes(file_path):
     try:
         pe = pefile.PE(file_path)
         imphash = pe.get_imphash()
-
         section_hashes = {}
         for section in pe.sections:
             md5_section = hashlib.md5(section.get_data()).hexdigest()
@@ -53,27 +56,24 @@ def get_pe_hashes(file_path):
                 "MD5": md5_section,
                 "SHA256": sha256_section
             }
-
         return imphash, section_hashes, pe
     except pefile.PEFormatError:
         return None, None, None
 
+
 def get_fuzzy_hash(file_path):
     return ssdeep.hash_from_file(file_path)
 
+
 def extract_strings(file_path, min_length=4):
-    """Extract printable ASCII and Unicode strings from a binary file."""
     with open(file_path, "rb") as f:
         data = f.read()
-
     # ASCII strings
     ascii_strings = re.findall(f"[{re.escape(string.printable)}]{{{min_length},}}", data.decode(errors="ignore"))
-
-    # Unicode strings (UTF-16 LE/BE)
+    # Unicode strings (UTF-16 LE)
     unicode_strings = re.findall(r"(?:[\x20-\x7E]\x00){%d,}" % min_length, data.decode("utf-16le", errors="ignore"))
+    return ascii_strings + unicode_strings
 
-    extracted_strings = ascii_strings + unicode_strings
-    return extracted_strings
 
 def save_strings_to_file(strings, file_path):
     output_file = f"{file_path}_strings.txt"
@@ -82,19 +82,19 @@ def save_strings_to_file(strings, file_path):
             f.write(line + "\n")
     return output_file
 
+
 def calculate_entropy(data):
     if not data:
         return 0.0
-
     counter = Counter(data)
     length = len(data)
     entropy = -sum((count / length) * math.log2(count / length) for count in counter.values())
     return entropy
 
-def analyze_entropy(file_path, pe):
+
+def analyze_entropy(file_path, pe=None):
     with open(file_path, "rb") as f:
         file_data = f.read()
-
     file_entropy = calculate_entropy(file_data)
     print_section("Entropy Analysis")
     print(f"[INFO] File Entropy: {file_entropy:.4f}")
@@ -106,7 +106,6 @@ def analyze_entropy(file_path, pe):
             section_data = section.get_data()
             section_entropy = calculate_entropy(section_data)
             print(f"    * {section.Name.decode().strip()}: {section_entropy:.4f}")
-
             if section_entropy > 7.0:
                 packed = True
 
@@ -117,8 +116,8 @@ def analyze_entropy(file_path, pe):
         print("\n[INFO] Entropy levels suggest the file is not packed.")
         return False
 
+
 def is_upx_packed(file_path):
-    """Check if the file is packed with UPX by scanning its sections."""
     try:
         pe = pefile.PE(file_path)
         for section in pe.sections:
@@ -128,8 +127,8 @@ def is_upx_packed(file_path):
         return False
     return False
 
+
 def unpack_upx(file_path):
-    """Attempt to unpack a UPX-packed file."""
     base_name, ext = os.path.splitext(os.path.basename(file_path))
     unpacked_file = base_name + "_unpacked" + ext
     try:
@@ -145,6 +144,7 @@ def unpack_upx(file_path):
         print("[ERROR] UPX not found. Please install UPX to enable unpacking.")
         return None
 
+
 def extract_resources(file_path):
     try:
         pe = pefile.PE(file_path)
@@ -153,7 +153,7 @@ def extract_resources(file_path):
     except AttributeError:
         print("[INFO] No resources found.")
 
-# Extract import functions
+
 def extract_imports(file_path):
     pe = pefile.PE(file_path)
     print("[INFO] Imported Functions:")
@@ -162,48 +162,120 @@ def extract_imports(file_path):
         for imp in entry.imports:
             print(f"    * {imp.name.decode() if imp.name else 'Ordinal'}")
 
-# Detect suspicious API calls
+
 def detect_suspicious_imports(file_path):
-    SUSPICIOUS_APIS = ["CreateRemoteThread", "VirtualAllocEx", "WriteProcessMemory", "RegOpenKeyExA", "RegSetValueExA", "RegQueryValueExA", "CreateFileA", "InternetReadFile", "CloseHandle", "InternetCloseHandle", "InternetOpenUrlA", "GetComputerNameA", "CreateProcessA"]
+    SUSPICIOUS_APIS = ["CreateRemoteThread", "VirtualAllocEx", "WriteProcessMemory",
+                       "RegOpenKeyExA", "RegSetValueExA", "RegQueryValueExA",
+                       "CreateFileA", "InternetReadFile", "CloseHandle",
+                       "InternetCloseHandle", "InternetOpenUrlA", "GetComputerNameA", "CreateProcessA"]
     pe = pefile.PE(file_path)
     for entry in pe.DIRECTORY_ENTRY_IMPORT:
         for imp in entry.imports:
             if imp.name and any(api in imp.name.decode() for api in SUSPICIOUS_APIS):
                 print(f"[WARNING] Suspicious API Found: {imp.name.decode()}")
 
-# Run YARA rules
+
 def run_yara(file_path, yara_rule):
     result = subprocess.run(["yara", yara_rule, file_path], capture_output=True, text=True)
     print("[INFO] YARA Scan Results:\n", result.stdout)
 
-# XOR decryption
+
 def xor_decrypt(data, key):
     return bytes([b ^ key for b in data])
+
 
 def brute_force_xor_strings(file_path):
     with open(file_path, "rb") as f:
         data = f.read()
-    for key in range(1, 256):  # Try all 1-byte XOR keys
+    for key in range(1, 256):
         decrypted = xor_decrypt(data, key)
         if b"http" in decrypted or b"cmd.exe" in decrypted:
             print(f"[ALERT] Possible XOR-encoded strings found with key {key}!")
 
-# Plot entropy visualization
-def plot_entropy(file_path):
-    pe = pefile.PE(file_path)
+
+def plot_entropy(file_path, pe=None):
     file_entropy = calculate_entropy(open(file_path, "rb").read())
     entropies = [file_entropy]
     labels = ["Full File"]
-    for section in pe.sections:
-        entropies.append(calculate_entropy(section.get_data()))
-        labels.append(section.Name.decode().strip())
-    #plt.rcParams["font.family"] = "Liberation Sans"
+    if pe:
+        for section in pe.sections:
+            entropies.append(calculate_entropy(section.get_data()))
+            labels.append(section.Name.decode().strip())
     plt.bar(labels, entropies, color="red")
     plt.xlabel("Sections")
     plt.ylabel("Entropy")
     plt.title("Entropy Analysis")
     plt.show()
 
+
+# ------------------------ ELF Analysis ------------------------
+def analyze_elf(file_path):
+    print_section("ELF File Analysis")
+    with open(file_path, "rb") as f:
+        elf = ELFFile(f)
+        print(f"[INFO] ELF Class: {elf.elfclass}-bit")
+        print(f"[INFO] Entry Point: 0x{elf.header.e_entry:x}")
+        print("[INFO] Sections:")
+        for section in elf.iter_sections():
+            print(f"  * {section.name} (size: {section.data_size} bytes)")
+        print("[INFO] Imports (Dynamic Symbols):")
+        dynsym = elf.get_section_by_name('.dynsym')
+        if dynsym:
+            for sym in dynsym.iter_symbols():
+                print(f"  - {sym.name}")
+
+
+# ------------------------ Mach-O Analysis ------------------------
+def analyze_macho(file_path):
+    print_section("Mach-O File Analysis")
+    binary = lief.parse(file_path)
+    if not binary:
+        print("[ERROR] Failed to parse Mach-O file.")
+        return
+    print(f"[INFO] Mach-O Type: {binary.header.file_type}")
+    print(f"[INFO] Entry Point: 0x{binary.entrypoint:x}")
+    print("[INFO] Libraries:")
+    for lib in binary.libraries:
+        print(f"  * {lib}")
+    print("[INFO] Sections:")
+    for section in binary.sections:
+        print(f"  * {section.name} (size: {section.size} bytes)")
+
+
+# ------------------------ Signer Detection ------------------------
+def get_pe_signer(file_path):
+    try:
+        result = subprocess.run(["signtool", "verify", "/pa", file_path],
+                                capture_output=True, text=True)
+        if "Successfully verified" in result.stdout:
+            lines = result.stdout.splitlines()
+            for line in lines:
+                if line.strip().startswith("Signing Certificate:"):
+                    return line.split(":", 1)[1].strip()
+            return "Signed (unknown signer)"
+        else:
+            return "Unsigned"
+    except Exception:
+        return "Unsigned"
+
+
+def get_macho_signer(file_path):
+    binary = lief.parse(file_path)
+    if not binary:
+        return "Unsigned"
+    if binary.has_signature:
+        cs = binary.signature
+        if cs and cs.signatures:
+            return cs.signatures[0].identity
+        return "Signed (unknown signer)"
+    return "Unsigned"
+
+
+def get_elf_signer(file_path):
+    return "Unsigned (ELF binaries generally are not signed)"
+
+
+# ------------------------ Main Function ------------------------
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file", required=True, help="File to analyze")
@@ -215,7 +287,7 @@ def main():
         sys.exit(1)
 
     print(Figlet(font='slant').renderText("HawkIoC"))
-    print("\nCreated by: pnasis\nVersion: v1.0\n")
+    print("\nCreated by: pnasis\nVersion: v3.0\n")
     print("[INFO] Analyzing:", args.file)
 
     print_section("File Information")
@@ -223,64 +295,72 @@ def main():
     print(f"[INFO] File Type: {file_type}")
     print(f"[INFO] Magic Numbers: {magic_numbers}")
 
+    # --- Signer Detection ---
+    print_section("File Signer")
+    if "PE32" in file_type:
+        signer = get_pe_signer(args.file)
+    elif "Mach-O" in file_type:
+        signer = get_macho_signer(args.file)
+    elif "ELF" in file_type:
+        signer = get_elf_signer(args.file)
+    else:
+        signer = "Unknown"
+    print(f"[INFO] Signer: {signer}")
+
+    # --- General Analysis ---
     print_section("File Hashes")
     md5_hash, sha256_hash = calculate_hashes(args.file)
     print(f"[INFO] MD5: {md5_hash}")
     print(f"[INFO] SHA256: {sha256_hash}")
 
-    imphash, section_hashes, pe = get_pe_hashes(args.file)
-    if imphash:
-        print_section("PE File Analysis")
-        print(f"[INFO] IMPHASH: {imphash}")
-        for section, hashes in section_hashes.items():
-            print(f"[INFO] Section: {section}, MD5: {hashes['MD5']}, SHA256: {hashes['SHA256']}")
-
     print_section("Fuzzy Hashing (SSDEEP)")
-    fuzzy_hash = get_fuzzy_hash(args.file)
-    print(f"[INFO] SSDEEP: {fuzzy_hash}")
+    print(f"[INFO] SSDEEP: {get_fuzzy_hash(args.file)}")
 
-    packed = analyze_entropy(args.file, pe)
-
-    if packed and is_upx_packed(args.file):
-        print_section("UPX Detection & Unpacking")
-        print("[INFO] UPX packer detected!")
-        unpacked_file = unpack_upx(args.file)
-        if unpacked_file:
-            print(f"[INFO] Re-analyzing unpacked file: {unpacked_file}")
-            main()
-
-    print_section("Extracting Strings")
     extracted_strings = extract_strings(args.file)
-    base_name, ext = os.path.splitext(os.path.basename(args.file))
-    output_file = save_strings_to_file(extracted_strings, base_name)
+    save_strings_to_file(extracted_strings, args.file)
     print(f"[INFO] Extracted {len(extracted_strings)} strings.")
-    print(f"[INFO] Strings saved to: {output_file}")
 
-    print("[INFO] Extracting PE Resources...")
-    extract_resources(args.file)
+    # --- Branch for Executable Type ---
+    if "PE32" in file_type:
+        imphash, section_hashes, pe = get_pe_hashes(args.file)
+        if imphash:
+            print_section("PE File Analysis")
+            print(f"[INFO] IMPHASH: {imphash}")
+            for section, hashes in section_hashes.items():
+                print(f"[INFO] Section: {section}, MD5: {hashes['MD5']}, SHA256: {hashes['SHA256']}")
+        packed = analyze_entropy(args.file, pe)
+        extract_resources(args.file)
+        extract_imports(args.file)
+        detect_suspicious_imports(args.file)
+        plot_entropy(args.file, pe)
 
-    print_section("Import Functions")
-    print("[INFO] Extracting Import Functions...")
-    extract_imports(args.file)
+        if packed and is_upx_packed(args.file):
+            print_section("UPX Detection & Unpacking")
+            print("[INFO] UPX packer detected!")
+            unpacked_file = unpack_upx(args.file)
+            if unpacked_file:
+                print(f"[INFO] Re-analyzing unpacked file: {unpacked_file}")
+                main()
 
-    print_section("Suspicious API Calls")
-    print("[INFO] Checking for Suspicious API Calls...")
-    detect_suspicious_imports(args.file)
+    elif "ELF" in file_type:
+        analyze_elf(args.file)
+        analyze_entropy(args.file, None)
 
+    elif "Mach-O" in file_type:
+        analyze_macho(args.file)
+        analyze_entropy(args.file, None)
+
+    else:
+        print("[WARNING] Unsupported file type.")
+
+    # --- Extra Analyses ---
     if args.yara:
-        print_section("YARA Analysis")
-        print("[INFO] Running YARA rules...")
         run_yara(args.file, args.yara)
 
-    print_section("XOR-encoded strings Analysis")
-    print("[INFO] Checking for XOR-encoded strings...")
     brute_force_xor_strings(args.file)
 
-    print_section("Entropy Visualization")
-    print("[INFO] Generating entropy visualization...")
-    plot_entropy(args.file)
-
     print("\n[INFO] Analysis completed!")
+
 
 if __name__ == "__main__":
     main()
