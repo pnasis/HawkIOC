@@ -11,6 +11,7 @@ import string
 import math
 import subprocess
 from collections import Counter
+import yara
 import matplotlib.pyplot as plt
 import warnings
 from elftools.elf.elffile import ELFFile
@@ -19,7 +20,7 @@ import lief
 warnings.simplefilter("ignore")
 
 
-# ------------------------ Helper Functions ------------------------
+# ------------------------ Helper Functions ------------------------ #
 def print_section(title):
     print("\n" + "=" * 50)
     print(f"\t\t[{title}]")
@@ -129,6 +130,7 @@ def is_upx_packed(file_path):
 
 
 def unpack_upx(file_path):
+    """Attempt to unpack a UPX-packed file."""
     base_name, ext = os.path.splitext(os.path.basename(file_path))
     unpacked_file = base_name + "_unpacked" + ext
     try:
@@ -329,9 +331,16 @@ def main():
             for section, hashes in section_hashes.items():
                 print(f"[INFO] Section: {section}, MD5: {hashes['MD5']}, SHA256: {hashes['SHA256']}")
         packed = analyze_entropy(args.file, pe)
+        print("[INFO] Extracting PE Resources...")
         extract_resources(args.file)
+        print_section("Import Functions")
+        print("[INFO] Extracting Import Functions...")
         extract_imports(args.file)
+        print_section("Suspicious API Calls")
+        print("[INFO] Checking for Suspicious API Calls...")
         detect_suspicious_imports(args.file)
+        print_section("XOR-encoded strings Analysis")
+        print("[INFO] Checking for XOR-encoded strings...")
         plot_entropy(args.file, pe)
 
         if packed and is_upx_packed(args.file):
@@ -355,8 +364,12 @@ def main():
 
     # --- Extra Analyses ---
     if args.yara:
+        print_section("YARA Analysis")
+        print("[INFO] Running YARA rules...")
         run_yara(args.file, args.yara)
 
+    print_section("XOR-encoded strings Analysis")
+    print("[INFO] Checking for XOR-encoded strings...")
     brute_force_xor_strings(args.file)
 
     print("\n[INFO] Analysis completed!")
