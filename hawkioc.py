@@ -212,6 +212,7 @@ def plot_entropy(file_path, pe=None):
 
 # ------------------------ ELF Analysis ------------------------
 def analyze_elf(file_path):
+    analyze_entropy(file_path, None)
     print_section("ELF File Analysis")
     with open(file_path, "rb") as f:
         elf = ELFFile(f)
@@ -244,39 +245,6 @@ def analyze_macho(file_path):
         print(f"  * {section.name} (size: {section.size} bytes)")
 
 
-# ------------------------ Signer Detection ------------------------
-def get_pe_signer(file_path):
-    try:
-        result = subprocess.run(["signtool", "verify", "/pa", file_path],
-                                capture_output=True, text=True)
-        if "Successfully verified" in result.stdout:
-            lines = result.stdout.splitlines()
-            for line in lines:
-                if line.strip().startswith("Signing Certificate:"):
-                    return line.split(":", 1)[1].strip()
-            return "Signed (unknown signer)"
-        else:
-            return "Unsigned"
-    except Exception:
-        return "Unsigned"
-
-
-def get_macho_signer(file_path):
-    binary = lief.parse(file_path)
-    if not binary:
-        return "Unsigned"
-    if binary.has_signature:
-        cs = binary.signature
-        if cs and cs.signatures:
-            return cs.signatures[0].identity
-        return "Signed (unknown signer)"
-    return "Unsigned"
-
-
-def get_elf_signer(file_path):
-    return "Unsigned (ELF binaries generally are not signed)"
-
-
 # ------------------------ Main Function ------------------------
 def main():
     parser = argparse.ArgumentParser()
@@ -289,25 +257,13 @@ def main():
         sys.exit(1)
 
     print(Figlet(font='slant').renderText("HawkIoC"))
-    print("\nCreated by: pnasis\nVersion: v3.0\n")
+    print("\nCreated by: pnasis\nVersion: v2.0\n")
     print("[INFO] Analyzing:", args.file)
 
     print_section("File Information")
     file_type, magic_numbers = get_file_type(args.file)
     print(f"[INFO] File Type: {file_type}")
     print(f"[INFO] Magic Numbers: {magic_numbers}")
-
-    # --- Signer Detection ---
-    print_section("File Signer")
-    if "PE32" in file_type:
-        signer = get_pe_signer(args.file)
-    elif "Mach-O" in file_type:
-        signer = get_macho_signer(args.file)
-    elif "ELF" in file_type:
-        signer = get_elf_signer(args.file)
-    else:
-        signer = "Unknown"
-    print(f"[INFO] Signer: {signer}")
 
     # --- General Analysis ---
     print_section("File Hashes")
@@ -318,9 +274,10 @@ def main():
     print_section("Fuzzy Hashing (SSDEEP)")
     print(f"[INFO] SSDEEP: {get_fuzzy_hash(args.file)}")
 
+    print_section("Extracting Strings")
     extracted_strings = extract_strings(args.file)
-    save_strings_to_file(extracted_strings, args.file)
     print(f"[INFO] Extracted {len(extracted_strings)} strings.")
+    print(f"[INFO] Strings saved to: {save_strings_to_file(extracted_strings, args.file)}")
 
     # --- Branch for Executable Type ---
     if "PE32" in file_type:
@@ -331,6 +288,10 @@ def main():
             for section, hashes in section_hashes.items():
                 print(f"[INFO] Section: {section}, MD5: {hashes['MD5']}, SHA256: {hashes['SHA256']}")
         packed = analyze_entropy(args.file, pe)
+        print_section("Entropy Visualization")
+        print("[INFO] Generating entropy visualization...")
+        plot_entropy(args.file, pe)
+        print_section("PE Resources")
         print("[INFO] Extracting PE Resources...")
         extract_resources(args.file)
         print_section("Import Functions")
@@ -339,9 +300,6 @@ def main():
         print_section("Suspicious API Calls")
         print("[INFO] Checking for Suspicious API Calls...")
         detect_suspicious_imports(args.file)
-        print_section("XOR-encoded strings Analysis")
-        print("[INFO] Checking for XOR-encoded strings...")
-        plot_entropy(args.file, pe)
 
         if packed and is_upx_packed(args.file):
             print_section("UPX Detection & Unpacking")
@@ -353,7 +311,6 @@ def main():
 
     elif "ELF" in file_type:
         analyze_elf(args.file)
-        analyze_entropy(args.file, None)
 
     elif "Mach-O" in file_type:
         analyze_macho(args.file)
