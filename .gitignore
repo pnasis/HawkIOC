@@ -1,5 +1,6 @@
 # Ignore the test directory
 test/
+additional_samples/
 
 # Ignore files
 *.exe
