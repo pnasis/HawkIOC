@@ -6,7 +6,7 @@ Mach-O file analyzer.
 import lief
 from core.base import FileAnalyzer
 from utils.common import print_section
-from utils.entropy import analyze_entropy
+from utils.entropy import analyze_entropy, plot_entropy
 
 
 class MachOAnalyzer(FileAnalyzer):
@@ -35,3 +35,6 @@ class MachOAnalyzer(FileAnalyzer):
             print(f"  * {section.name} (size: {section.size} bytes)")
 
         analyze_entropy(self.file_path, None)
+        print_section("Entropy Visualization")
+        print("[INFO] Generating entropy visualization...")
+        plot_entropy(self.file_path, None)
