@@ -2,7 +2,7 @@
 
 HawkIOC is a Python-based tool designed to automate a large part of the **static analysis** process for malware samples. It extracts important indicators of compromise (IOCs) and generates various hashes to assist in threat intelligence and forensics.
 
-### v2.1 (Current)
+### v2.0 (Current)
 - Added **support for ELF and Mach-O files** (cross-platform analysis beyond PE).
 - Added **string categorization** (URLs, Domains, IPs, Others) with console output.
 - Improved **modular structure** with `core/` and `utils/` packages.
@@ -62,7 +62,7 @@ python3 main.py -f sample.exe
 
 
 Created by: pnasis
-Version: v2.1
+Version: v2.0
 
 [INFO] Analyzing: apple.exe
 
@@ -294,7 +294,7 @@ Version: v2.1
 
 
 Created by: pnasis
-Version: v2.1
+Version: v2.0
 
 [INFO] Analyzing: apricot
 
@@ -405,7 +405,7 @@ Version: v2.1
 
 
 Created by: pnasis
-Version: v2.1
+Version: v2.0
 
 [INFO] Analyzing: kiwi
 
