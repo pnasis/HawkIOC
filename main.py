@@ -27,7 +27,7 @@ warnings.simplefilter("ignore")
 def parse_args():
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
-        description="HawkIoC - Static Malware Analysis"
+        description="HawkIoC - Malware Static Analysis Automation Tool"
     )
     parser.add_argument(
         "-f", "--file", required=True, help="File to analyze"
