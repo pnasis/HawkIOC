@@ -2,6 +2,9 @@
 test/
 additional_samples/
 __pycache__
+utils/__pycache__/
+core/__pycache__/
+
 
 # Ignore files
 *.exe

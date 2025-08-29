@@ -17,10 +17,9 @@ from utils.file_info import (
     calculate_hashes,
     get_fuzzy_hash,
 )
-from utils.strings import extract_strings, save_strings_to_file
+from utils.strings import extract_strings, save_strings_to_file, categorize_strings, brute_force_xor_strings
 from utils.yara_scanner import run_yara
 from core.factory import AnalyzerFactory
-from utils.entropy import brute_force_xor_strings
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
@@ -77,10 +76,32 @@ def main():
 
     # Strings
     print_section("Extracting Strings")
-    extracted = extract_strings(args.file)
-    print(f"[INFO] Extracted {len(extracted)} strings.")
-    out_path = save_strings_to_file(extracted, args.file)
-    print(f"[INFO] Strings saved to: {out_path}")
+    extracted_strings = extract_strings(args.file)
+    print(f"[INFO] Extracted {len(extracted_strings)} strings.")
+    output_file = save_strings_to_file(extracted_strings, args.file)
+    print(f"[INFO] Strings saved to: {output_file}")
+
+    # Categorize Strings
+    print_section("Categorized Strings")
+    categorized = categorize_strings(extracted_strings)
+
+    if categorized["urls"]:
+        print("\n[INFO] URLs Found:")
+        for url in categorized["urls"]:
+            print(f"   {url}")
+
+    if categorized["domains"]:
+        print("\n[INFO] Domains Found:")
+        for domain in categorized["domains"]:
+            print(f"   {domain}")
+
+    if categorized["ips"]:
+        print("\n[INFO] IPs Found:")
+        for ip in categorized["ips"]:
+            print(f"   {ip}")
+
+    if not categorized["urls"] and not categorized["domains"] and not categorized["ips"]:
+        print("[INFO] No categorized strings found.")
 
     # Analyzer selection + run
     analyzer = AnalyzerFactory.create(args.file, file_type)

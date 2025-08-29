@@ -8,8 +8,6 @@ from collections import Counter
 
 import matplotlib.pyplot as plt
 
-from utils.common import xor_decrypt
-
 
 def calculate_entropy(data):
     """Calculate Shannon entropy of a byte sequence."""
@@ -69,30 +67,13 @@ def plot_entropy(file_path, pe=None):
             entropies.append(calculate_entropy(section.get_data()))
             labels.append(section.Name.decode(errors="ignore").strip())
 
-    plt.bar(labels, entropies)
+    plt.bar(labels, entropies, color="red")
     plt.xlabel("Sections")
     plt.ylabel("Entropy")
     plt.title("Entropy Analysis")
     plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
     plt.show()
-
-
-def brute_force_xor_strings(file_path):
-    """
-    Brute-force single-byte XOR to spot likely C2/commands.
-    Heuristic: print alert if decrypted buffer contains common markers.
-    """
-    with open(file_path, "rb") as fobj:
-        data = fobj.read()
-
-    markers = [b"http", b"https", b"cmd.exe", b"powershell", b"/bin/sh"]
-    for key in range(1, 256):
-        dec = xor_decrypt(data, key)
-        if any(m in dec for m in markers):
-            print(
-                f"[ALERT] Possible XOR-encoded strings found with key {key}!"
-            )
 
 
 def print_section(title):
