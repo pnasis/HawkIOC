@@ -39,7 +39,7 @@ def parse_args():
 def banner():
     """Print tool banner."""
     print(Figlet(font="slant").renderText("HawkIoC"))
-    print("\nCreated by: pnasis\nVersion: v2.1\n")
+    print("\nCreated by: pnasis\nVersion: v2.0\n")
 
 
 def main():
