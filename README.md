@@ -40,11 +40,11 @@ pip install -r requirements.txt
 
 Run the tool with:
 ```bash
-python3 hawkioc.py -f <malware_sample> [--yara rules.yar]
+python3 main.py -f <malware_sample> [--yara rules.yar]
 ```
 Example:
 ```bash
-python3 hawkioc.py -f sample.exe
+python3 main.py -f sample.exe
 ```
 
 ### **Output Files**
