@@ -8,7 +8,6 @@ import os
 import subprocess
 
 import pefile
-
 from core.base import FileAnalyzer
 from utils.common import (
     print_section,

@@ -5,7 +5,6 @@ Entropy utilities and plotting.
 
 import math
 from collections import Counter
-
 import matplotlib.pyplot as plt
 
 

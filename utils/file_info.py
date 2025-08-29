@@ -4,7 +4,6 @@ File information utilities: magic type, magic numbers, hashes, ssdeep.
 """
 
 import hashlib
-
 import magic
 import ssdeep
 

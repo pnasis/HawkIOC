@@ -8,9 +8,7 @@ import argparse
 import os
 import sys
 import warnings
-
 from pyfiglet import Figlet
-
 from utils.common import print_section
 from utils.file_info import (
     get_file_type,

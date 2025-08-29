@@ -4,7 +4,6 @@ ELF file analyzer.
 """
 
 from elftools.elf.elffile import ELFFile
-
 from core.base import FileAnalyzer
 from utils.common import print_section
 from utils.entropy import analyze_entropy

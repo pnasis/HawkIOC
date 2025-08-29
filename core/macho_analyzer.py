@@ -4,7 +4,6 @@ Mach-O file analyzer.
 """
 
 import lief
-
 from core.base import FileAnalyzer
 from utils.common import print_section
 from utils.entropy import analyze_entropy

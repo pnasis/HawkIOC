@@ -4,7 +4,6 @@ Abstract base classes and shared analyzer behavior.
 """
 
 from abc import ABC, abstractmethod
-
 from utils.common import print_section
 
 
