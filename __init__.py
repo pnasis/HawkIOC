@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-HawkIoC package.
+HawkIoC - Malware Static Analysis Automation Tool package.
 """
 __all__ = ["core", "utils"]
