@@ -40,7 +40,7 @@ def save_strings_to_file(strings, file_path):
 
 def categorize_strings(strings):
     """
-    Categorize strings into URLs, IPs, API calls, etc.
+    Categorize strings into URLs, Domains and IPs.
     """
     categories = {
         "urls": [],
@@ -49,18 +49,25 @@ def categorize_strings(strings):
     }
 
     url_pattern = re.compile(r"(https?://[^\s\"'<>]+)")
-    domain_pattern = re.compile(r"\b((?:[a-zA-Z0-9-]+\.)+(?:[a-zA-Z]{2,63}))\b")
+    domain_pattern = re.compile(r"\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b")
     ip_pattern = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 
-    excluded_extensions = {"dll", "tmp", "exe", "dat", "bin", "sys"}
+    valid_tlds = {
+        "com", "org", "net", "edu", "gov", "mil", "int",
+        "io", "co", "us", "uk", "de", "fr", "gr", "ru", "cn",
+        "xyz", "club", "online", "info", "biz", "me"
+    }
     for s in strings:
+        s = s.strip()
+        if not s:
+            continue
         if url_pattern.search(s):
             categories["urls"].append(s)
         elif domain_pattern.fullmatch(s):
             tld = s.split(".")[-1].lower()
-            if tld not in excluded_extensions and not ip_pattern.match(tld):
+            if tld in valid_tlds:
                 categories["domains"].append(s)
-        elif ip_pattern.search(s):
+        elif ip_pattern.fullmatch(s):
             categories["ips"].append(s)
 
     return categories
